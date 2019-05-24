@@ -1,5 +1,7 @@
 # FX Explorer
 
+![Preview](./screenshot.png)
+
 ## Prerequisites
 
 - NW.JS installed
