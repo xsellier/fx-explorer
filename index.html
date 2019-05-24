@@ -1,0 +1,448 @@
+<html>
+
+<head>
+  <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+  <meta content="utf-8" http-equiv="encoding">
+  <style>
+    body {
+      font-family: 'Raleway', sans-serif;
+      overflow: hidden;
+    }
+
+    #background {
+      background-image: url("./background.jpg");
+      opacity:0.2;
+      width: 100%;
+      height: 100%;
+      position:absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+
+    .title {
+      font-size: 32px;
+      overflow: auto;
+    }
+
+    .card {
+      word-wrap: break-word;
+      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+      background-color: #fefefe;
+      max-width: 650px;
+      margin: auto;
+      padding: 2px;
+      text-align: center;
+    }
+
+    .tags {
+      color: grey;
+      font-size: 18px;
+    }
+
+    .red {
+      background-color: #dd4444 !important;
+    }
+
+    .black {
+      background-color: #333333 !important;
+    }
+
+    .button {
+      background-color: #93C775;
+      /* Green */
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+    }
+
+    .select {
+      background-color: #93C775;
+      /* Green */
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+    }
+
+    .input {
+      /* Green */
+      border: 1px thin grey;
+      padding: 15px;
+      text-align: left;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+    }
+
+    .list-type1 {}
+
+    .list-type1 ol {
+      counter-reset: li;
+      list-style: none;
+      *list-style: decimal;
+      font-size: 15px;
+      font-family: 'Raleway', sans-serif;
+      padding: 0;
+      margin-bottom: 4em;
+    }
+
+    .list-type1 ol ol {
+      margin: 0 0 0 2em;
+    }
+
+    .list-type1 a {
+      position: relative;
+      display: block;
+      padding: .4em .4em .4em 2em;
+      *padding: .4em;
+      margin: .5em 0;
+      background: #93C775;
+      color: #000;
+      text-decoration: none;
+      -moz-border-radius: .3em;
+      -webkit-border-radius: .3em;
+      border-radius: 10em;
+      transition: all .2s ease-in-out;
+    }
+
+    .list-type1 a:hover {
+      background: #d6d4d4;
+      text-decoration: none;
+      transform: scale(1.1);
+    }
+
+    .list-type1 a:before {
+      content: counter(li);
+      counter-increment: li;
+      position: absolute;
+      left: -1.3em;
+      top: 50%;
+      margin-top: -1.3em;
+      background: #93C775;
+      height: 2em;
+      width: 2em;
+      line-height: 2em;
+      border: .3em solid #fff;
+      text-align: center;
+      font-weight: bold;
+      -moz-border-radius: 2em;
+      -webkit-border-radius: 2em;
+      border-radius: 2em;
+      color: #FFF;
+    }
+
+    .column {
+      float: left;
+      padding: 18px;
+      width: 45%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      height: 70%;
+    }
+
+    /* Clear floats after the columns */
+
+    .row:after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+  </style>
+  <script>
+    var acceptedFileTypes = ['.wav', '.mp3', '.aif', '.acc', '.ogg']
+    var data = []
+
+    function openDirectory(directory) {
+      var gui = require('nw.gui')
+
+      gui.Shell.showItemInFolder(directory)
+    }
+
+    function autoSizeText() {
+      var item = document.getElementById('resize-title')
+
+      while (item.scrollHeight < item.offsetHeight) {
+        var currentFontSize = window.getComputedStyle(item, null).getPropertyValue('font-size')
+
+        item.style.setProperty('font-size', (parseInt(currentFontSize.slice(0, -2)) - 1) + 'px')
+      }
+    }
+
+    function parseCurrentDirectory() {
+      const path = require('path')
+      const fs = require('fs')
+
+      const parseFile = (filePath, fileStat) => {
+        let dirname = path.dirname(filePath)
+        let filename = path.basename(filePath)
+        let extname = path.extname(filePath).toLocaleLowerCase()
+        let tags = filePath.replace(`${current_path}${path.sep}`, '')
+          .replace(extname, '')
+          .replace(/[\!\'\"&\-,\._\/\+]/ig, ' ')
+          .replace(/[\ ]+/g, ' ')
+          .replace(/([\ ][0-9]*[\ ]|[\ ][0-9]*$|^[0-9]*[\ ])/gi, ' ')
+          .toLowerCase().split(' ')
+        let size = fileStat.size
+        let date = fileStat.atime
+
+        return {
+          filename, extname, tags, dirname, filePath, size, date
+        }
+      }
+
+      const parseDirectory = (absolute_path) => {
+        let currentFileList = fs.readdirSync(absolute_path)
+
+        return currentFileList.reduce((acc, filename) => {
+          let current_file = `${absolute_path}${path.sep}${filename}`
+          let current_file_lstat = fs.lstatSync(current_file)
+
+          if (current_file_lstat.isDirectory()) {
+            acc = acc.concat(parseDirectory(current_file))
+          } else if (acceptedFileTypes.includes(path.extname(current_file).toLocaleLowerCase())) {
+            acc.push(parseFile(current_file, current_file_lstat))
+          }
+
+          return acc
+        }, [])
+      }
+
+      const current_path = process.cwd()
+      const current_directory = fs.readdirSync(current_path)
+      const filelist = current_directory.reduce((acc, filename) => {
+        let current_file = `${current_path}${path.sep}${filename}`
+
+        // Check if current file is a directory or a file
+        if (fs.lstatSync(current_file).isDirectory()) {
+          acc = acc.concat(parseDirectory(current_file))
+        }
+
+        return acc
+      }, [])
+
+      data = filelist
+      resetResults()
+    }
+
+    function updateSearch(tagToAppend) {
+      var tagsNode = document.getElementById('tags')
+
+      tagsNode.value += ` ${tagToAppend}`
+
+      filterResults()
+    }
+
+    function bytesToSize(bytes) {
+      var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      if (bytes == 0) return '0 Byte';
+      var index = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return Math.round(bytes / Math.pow(1024, index), 2) + ' ' + sizes[index];
+    };
+
+    function refreshTags(tagsList) {
+      var tagsListNode = document.getElementById('tagsList')
+      var tagsListFiltered = Object.keys(tagsList).sort(function(a, b) {
+        return tagsList[b] - tagsList[a]
+      }).slice(0, 20).reduce(function (acc, item) {
+
+        return `${acc}<a href='#' onclick="javascript: updateSearch('${item}');">${item}</a>&nbsp;&nbsp;`
+      }, '')
+
+      tagsListNode.innerHTML = tagsListFiltered
+    }
+
+    function resetResults() {
+      var fileTypeListNode = document.getElementById('fileTypeList')
+      var resultNode = document.getElementById('result')
+      var listTypes = []
+      var tagsList = {}
+
+      var result = data.sort(sortFilename).reduce(function (acc, item) {
+        if (!listTypes.includes(item.extname)) {
+          listTypes.push(item.extname)
+        }
+
+        item.tags.forEach(function (tag) {
+          if (tagsList[tag] != null) {
+            tagsList[tag] += 1
+          } else {
+            tagsList[tag] = 1
+          }
+        })
+
+        return `${acc}
+          <li>
+            <a href="#" onclick='javascript: previewSound(${JSON.stringify(item)});'>
+              ${item.filename}
+            </a>
+          </li>`
+      }, '')
+
+      fileTypeListNode.innerHTML = listTypes.reduce(function (acc, item) {
+        if (item == null || item == '') {
+          return acc
+        }
+
+        return `${acc}<option>${item}</option>`
+      }, '<option>All</option>')
+
+      resultNode.innerHTML = `<ol>${result}</ol>`
+
+      refreshTags(tagsList)
+    }
+
+    function previewSound(sound) {
+      var previewNode = document.getElementById('preview')
+
+      previewNode.innerHTML = `<div class="card">
+        <div class="title" id="resize-title">
+          ${sound.filename}
+        </div>
+        <audio controls src="file:///${sound.filePath}" id="myAudio" autoplay style="width:100%"></audio>
+        <h2>Size: ${bytesToSize(sound.size)}</h2>
+        <p class="tags">${sound.tags.join(', ')}</p>
+        <button type='button' value='Remove' onclick='javascript: removeFile("${sound.filePath}")' class='button black'>Remove</button>
+        <button type='button' value='Show directory' onclick='javascript: openDirectory("${sound.filePath}")' class='button'>Show directory</button>
+      </div>
+      `
+
+      autoSizeText()
+    }
+
+    function arrayContains(arrayToFilter, targettedItems) {
+      return targettedItems.reduce(function (acc, item) {
+        return acc && arrayToFilter.reduce(function (acc, toFilter) {
+          return acc || toFilter.includes(item)
+        }, false)
+      }, true)
+    }
+
+    function sortFilename(a, b) {
+      if(a.filename.toLowerCase() < b.filename.toLowerCase()) return -1
+      if(a.filename.toLowerCase() > b.filename.toLowerCase()) return 1
+      return 0
+    }
+
+    function sortDate(a, b) {
+      if(a.date < b.date) return -1
+      if(a.date > b.date) return 1
+      return 0
+    }
+
+    function sortSize(a, b) {
+      return parseInt(a.size) - parseInt(b.size)
+    }
+
+    function sortCustom(filterName) {
+      if (filterName == 'filename') {
+        return sortFilename
+      } else if (filterName == 'date') {
+        return sortDate
+      } else {
+        return sortSize
+      }
+    }
+
+    function filterResults() {
+      var resultNode = document.getElementById('result')
+      var fileTypeListNode = document.getElementById('fileTypeList')
+      var tagsNode = document.getElementById('tags')
+      var filteredTags = tagsNode.value.toLowerCase().split(' ')
+      var selectedExtension = fileTypeListNode.options[fileTypeListNode.selectedIndex].text
+      var tagsList = {}
+      var customSortRadios = document.getElementsByName('customSort')
+      var filterFunction = sortCustom([].find.call(customSortRadios, function(item) {
+        return item.checked
+      }).id.toLowerCase())
+
+      var result = data.filter(function (item) {
+        // Filter by file type
+        return item.extname == selectedExtension || selectedExtension == 'All'
+      }).filter(function (item) {
+        // Filter by tag
+        var filterItem = true
+
+        if (filteredTags != null && filteredTags.length > 0) {
+          filterItem = arrayContains(item.tags, filteredTags)
+        }
+
+        return filterItem
+      }).sort(filterFunction).reduce(function (acc, item) {
+        item.tags.forEach(function (tag) {
+          if (tagsList[tag] != null) {
+            tagsList[tag] += 1
+          } else {
+            tagsList[tag] = 1
+          }
+        })
+
+        return `${acc}
+          <li>
+            <a href="#" onclick='javascript: previewSound(${JSON.stringify(item)});'>
+              ${item.filename}
+            </a>
+          </li>`
+      }, '')
+
+      resultNode.innerHTML = `<ol>${result}</ol>`
+
+      refreshTags(tagsList)
+    }
+
+    function removeFile(fileToRemove) {
+      var confirmPopup = confirm(`Are you sure you want to delete ${fileToRemove}`)
+
+      if (confirmPopup) {
+        var fs = require('fs')
+
+        fs.unlinkSync(fileToRemove)
+
+        var previewNode = document.getElementById('preview')
+
+        previewNode.innerHTML = ''
+
+        parseCurrentDirectory()
+      }
+    }
+  </script>
+</head>
+
+<body onload="javascript: parseCurrentDirectory();">
+  <div id="background"></div>
+  <div class="card">
+    <h3>SFX library viewer</h3>
+    <div style="justify-content:center;align-items:center;">
+      <form onreset="resetResults();" accept-charset="UTF-8">
+        <center>
+          <input id="tags" type="search" value="" placeholder="UI, City..." onkeyup="filterResults();" class="input" />
+          <select id="fileTypeList" onchange="filterResults();" class="select"></select>
+          <input type="reset" value="Reset" class="button" />
+          <button type="button" class="button black" onclick="parseCurrentDirectory();">Rescan</button>
+          <br />
+          <input type="radio" id="filename" name="customSort" onchange="filterResults();" checked />
+          <label for="filename">Filename</label>
+          <input type="radio" id="date" name="customSort" onchange="filterResults();" />
+          <label for="date">Date</label>
+          <input type="radio" id="size" name="customSort" onchange="filterResults();" />
+          <label for="size">Size</label>
+        </center>
+      </form>
+    </div>
+    <p id="tagsList"></p>
+  </div>
+
+  <div class="row">
+    <div class="column list-type1" id="result"></div>
+    <div class="column" id="preview"></div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "sfx-library-viewer",
+  "version": "1.0.0",
+  "description": "Viewer of SFX files",
+  "main": "index.html",
+  "window": {
+    "title": "SFX Library Viewer",
+    "width": 1600,
+    "height": 900
+  },
+  "license": "MIT"
+}
