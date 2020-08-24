@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- NW.JS installed
+- NW.JS installed ([v0.38.4](https://dl.nwjs.io/v0.38.4/))
 
 ## Usage
 
