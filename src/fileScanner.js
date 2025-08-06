@@ -19,6 +19,7 @@ class FileScanner extends EventEmitter {
     this.scanCount = 0;
     this.watcher = null;
     this.scanTimer = null;
+    this.shutingdown = false;
     
     console.log('🔍 FileScanner initialized');
     console.log(`   Library Path: ${path.resolve(this.options.libraryPath)}`);
@@ -60,6 +61,8 @@ class FileScanner extends EventEmitter {
       this.watcher = null;
     }
     
+    this.shutingdown = true;
+
     console.log('⏹️  FileScanner stopped');
   }
 
@@ -137,7 +140,7 @@ class FileScanner extends EventEmitter {
 
     try {
       // Mark all existing files as inactive for cleanup detection
-      await this.db.markAllFilesInactive();
+      // await this.db.markAllFilesInactive();
       
       // Scan directory
       const files = await this.scanDirectory(this.options.libraryPath);
@@ -170,6 +173,11 @@ class FileScanner extends EventEmitter {
         } catch (error) {
           errors++;
           console.error(`🚨 Error processing file ${filePath}:`, error.message);
+        }
+
+        // Ensure the file scanner to close itself
+        if (this.shutingdown) {
+          return;
         }
       }
       
@@ -220,6 +228,11 @@ class FileScanner extends EventEmitter {
             }
           } else if (stat.isFile() && this.isAudioFile(itemPath)) {
             files.push(itemPath);
+          }
+
+          // Ensure the file scanner to close itself
+          if (this.shutingdown) {
+            return;
           }
         }
       } catch (error) {

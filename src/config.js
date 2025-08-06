@@ -200,12 +200,12 @@ The configuration loader automatically resolves relative paths to absolute paths
       },
       paths: {
         audioLibrary: "./audio_library",
-        database: "./sfx_library.db",
+        database: "./data/sfx_library.db",
         public: "./public"
       },
       scanner: {
-        scanInterval: 300000,
-        watchFiles: true,
+        scanInterval: 3600000,
+        watchFiles: false,
         acceptedExtensions: [".wav", ".mp3", ".aif", ".aiff", ".aac", ".acc", ".ogg", ".flac", ".m4a"]
       },
       database: {
@@ -232,7 +232,7 @@ The configuration loader automatically resolves relative paths to absolute paths
         }
       },
       features: {
-        fileWatcher: true,
+        fileWatcher: false,
         autoScan: true,
         webInterface: true
       }

@@ -367,12 +367,12 @@ class SFXLibraryServer {
         } else {
           console.error('🚨 Server error:', error);
         }
-        process.exit(1);
+        shutdown(1);
       });
 
     } catch (error) {
       console.error('🚨 Failed to start server:', error);
-      process.exit(1);
+      shutdown(1);
     }
   }
 
