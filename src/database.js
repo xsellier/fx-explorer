@@ -66,6 +66,7 @@ class Database {
       );
 
       -- Indexes for better performance
+      CREATE INDEX IF NOT EXISTS idx_files_filepath ON files(filepath);
       CREATE INDEX IF NOT EXISTS idx_files_extension ON files(extension);
       CREATE INDEX IF NOT EXISTS idx_files_active ON files(is_active);
       CREATE INDEX IF NOT EXISTS idx_files_date_modified ON files(date_modified);
@@ -128,7 +129,7 @@ class Database {
       } = fileData;
 
       const sql = `
-        INSERT OR REPLACE INTO files 
+        INSERT INTO files 
         (filename, filepath, relative_path, extension, size, size_formatted, date_modified, date_accessed, is_active, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, strftime('%s', 'now'))
       `;
@@ -151,6 +152,37 @@ class Database {
         }
       });
     });
+  }
+
+  // Get file by filepath to check if it already exists
+  getFileByPath(filepath) {
+    return this.get('SELECT * FROM files WHERE filepath = ?', [filepath]);
+  }
+
+  // Update existing file information
+  updateExistingFile(fileId, fileData) {
+    const {
+      filename,
+      size,
+      sizeFormatted,
+      dateModified,
+      dateAccessed
+    } = fileData;
+
+    return this.run(`
+      UPDATE files 
+      SET filename = ?, size = ?, size_formatted = ?, date_modified = ?, 
+          date_accessed = ?, is_active = 1, updated_at = strftime('%s', 'now')
+      WHERE id = ?
+    `, [filename, size, sizeFormatted, dateModified, dateAccessed, fileId]);
+  }
+
+  // Mark file as active without updating other fields
+  markFileActive(fileId) {
+    return this.run(
+      'UPDATE files SET is_active = 1, updated_at = strftime(\'%s\', \'now\') WHERE id = ?', 
+      [fileId]
+    );
   }
 
   async insertFileTags(fileId, tags) {
@@ -248,7 +280,73 @@ class Database {
     return this.run('DELETE FROM files WHERE is_active = 0');
   }
 
-  // File queries with advanced filtering and sorting
+  // Get total count of files matching criteria (for pagination)
+  async getFilesCount(options = {}) {
+    const {
+      search = '',
+      extension = '',
+      tags = []
+    } = options;
+
+    let sql = `
+      SELECT COUNT(DISTINCT f.id) as count
+      FROM files f
+      LEFT JOIN file_tags ft ON f.id = ft.file_id
+      LEFT JOIN tags t ON ft.tag_id = t.id
+      WHERE f.is_active = 1
+    `;
+
+    const params = [];
+
+    // Extension filter
+    if (extension && extension !== 'All') {
+      sql += ' AND f.extension = ?';
+      params.push(extension);
+    }
+
+    // Tags filter
+    if (tags.length > 0) {
+      const tagPlaceholders = tags.map(() => '?').join(',');
+      sql += ` AND f.id IN (
+        SELECT ft.file_id 
+        FROM file_tags ft 
+        JOIN tags t ON ft.tag_id = t.id 
+        WHERE t.name IN (${tagPlaceholders})
+        GROUP BY ft.file_id 
+        HAVING COUNT(DISTINCT t.id) = ?
+      )`;
+      params.push(...tags, tags.length);
+    }
+
+    // Search filter (using FTS if available)
+    if (search.trim()) {
+      if (search.includes(' ')) {
+        // Multiple terms - use FTS
+        sql += ` AND f.id IN (
+          SELECT rowid FROM files_fts 
+          WHERE files_fts MATCH ?
+        )`;
+        params.push(search.trim());
+      } else {
+        // Single term - use LIKE for broader matching
+        sql += ` AND (
+          f.filename LIKE ? OR 
+          f.relative_path LIKE ? OR
+          f.id IN (SELECT ft.file_id FROM file_tags ft JOIN tags t ON ft.tag_id = t.id WHERE t.name LIKE ?)
+        )`;
+        const searchTerm = `%${search.trim()}%`;
+        params.push(searchTerm, searchTerm, searchTerm);
+      }
+    }
+
+    try {
+      const result = await this.get(sql, params);
+      return result ? result.count : 0;
+    } catch (error) {
+      console.error('Error getting files count:', error);
+      throw error;
+    }
+  }
   async getFiles(options = {}) {
     const {
       search = '',

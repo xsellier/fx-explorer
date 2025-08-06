@@ -17,58 +17,59 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       overflow-x: hidden;
+      font-size: 14px;
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 1600px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 15px;
     }
 
     .header {
       background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
       backdrop-filter: blur(10px);
       text-align: center;
     }
 
     .header h1 {
-      margin: 0 0 20px 0;
+      margin: 0 0 15px 0;
       color: #333;
-      font-size: 2.5em;
+      font-size: 2em;
       font-weight: 300;
     }
 
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 15px;
+      gap: 10px;
       align-items: center;
       justify-content: center;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
     }
 
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 5px;
-      min-width: 200px;
+      gap: 3px;
+      min-width: 160px;
     }
 
     .input-group label {
-      font-size: 12px;
+      font-size: 11px;
       color: #666;
       font-weight: 500;
     }
 
     .input, .select {
-      padding: 12px 16px;
+      padding: 8px 12px;
       border: 2px solid #e1e5e9;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 6px;
+      font-size: 13px;
       background: white;
       transition: all 0.3s ease;
     }
@@ -76,19 +77,19 @@
     .input:focus, .select:focus {
       outline: none;
       border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
     }
 
     .button {
-      padding: 12px 24px;
+      padding: 8px 16px;
       border: none;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 6px;
+      font-size: 12px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.3s ease;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
     }
 
     .button.primary {
@@ -97,14 +98,14 @@
     }
 
     .button.primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(102, 126, 234, 0.4);
     }
 
     .button.secondary {
       background: #f8f9fa;
       color: #333;
-      border: 2px solid #e1e5e9;
+      border: 1px solid #e1e5e9;
     }
 
     .button.secondary:hover {
@@ -128,126 +129,199 @@
 
     .stats {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       justify-content: center;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
     }
 
     .stat-item {
       background: rgba(255, 255, 255, 0.2);
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 15px;
+      font-size: 11px;
       color: #333;
     }
 
     .sorting-options {
       display: flex;
-      gap: 20px;
+      gap: 15px;
       align-items: center;
       flex-wrap: wrap;
       justify-content: center;
+      font-size: 12px;
     }
 
     .radio-group {
       display: flex;
-      gap: 15px;
+      gap: 10px;
       align-items: center;
     }
 
     .radio-group label {
       display: flex;
       align-items: center;
-      gap: 5px;
-      font-size: 14px;
+      gap: 4px;
+      font-size: 12px;
       cursor: pointer;
     }
 
     .volume-control {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .slider {
-      width: 120px;
-      height: 6px;
+      width: 100px;
+      height: 4px;
       background: #ddd;
       outline: none;
-      border-radius: 3px;
+      border-radius: 2px;
     }
 
     .main-content {
       display: grid;
-      grid-template-columns: 1fr 400px;
-      gap: 20px;
-      height: calc(100vh - 300px);
+      grid-template-columns: 1fr 350px;
+      gap: 15px;
+      height: calc(100vh - 240px);
     }
 
     @media (max-width: 1024px) {
       .main-content {
         grid-template-columns: 1fr;
-        grid-template-rows: 300px 1fr;
+        grid-template-rows: 250px 1fr;
         height: auto;
+      }
+
+      renderFiles() {
+        const container = document.getElementById('filesList');
+        
+        if (this.files.length === 0 && this.pagination.totalFiles === 0) {
+          container.innerHTML = `
+            <div class="no-results">
+              <div class="no-results-icon">🔍</div>
+              <div>No audio files found matching your criteria</div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = this.files.map(file => `
+          <div class="file-item" data-id="${file.id}" onclick="app.selectFile(${file.id})">
+            <div class="file-icon">${file.extname.substring(1).toUpperCase()}</div>
+            <div class="file-info">
+              <div class="file-name" title="${file.filename}">${file.filename}</div>
+              <div class="file-meta">
+                <span>${file.sizeFormatted}</span>
+                <span>${file.tags.slice(0, 3).join(', ')}</span>
+              </div>
+            </div>
+          </div>
+        `).join('');
       }
     }
 
     .file-list, .preview-panel {
       background: rgba(255, 255, 255, 0.95);
-      border-radius: 15px;
-      padding: 20px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
       backdrop-filter: blur(10px);
     }
 
     .file-list {
-      overflow-y: auto;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
-    .file-list h3 {
-      margin: 0 0 20px 0;
-      color: #333;
+    .file-list-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .file-list h3 {
+      margin: 0;
+      color: #333;
+      font-size: 16px;
+      font-weight: 600;
     }
 
     .file-count {
-      font-size: 14px;
+      font-size: 12px;
       color: #666;
       font-weight: normal;
     }
 
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pagination-info {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .page-size-selector {
+      font-size: 11px;
+    }
+
+    .page-size-selector select {
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .pagination-buttons {
+      display: flex;
+      gap: 5px;
+    }
+
+    .pagination-buttons button {
+      padding: 4px 8px;
+      font-size: 11px;
+      min-width: 30px;
+    }
+
     .files-container {
-      max-height: calc(100% - 60px);
+      flex: 1;
       overflow-y: auto;
+      margin-bottom: 10px;
     }
 
     .file-item {
       display: flex;
       align-items: center;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      margin-bottom: 4px;
       cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
     }
 
     .file-item:hover {
       background: rgba(102, 126, 234, 0.1);
-      transform: translateX(5px);
+      transform: translateX(3px);
     }
 
     .file-item.active {
-      background: rgba(102, 126, 234, 0.2);
+      background: rgba(102, 126, 234, 0.15);
       border-color: #667eea;
     }
 
     .file-icon {
-      width: 40px;
-      height: 40px;
+      width: 32px;
+      height: 32px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       border-radius: 50%;
       display: flex;
@@ -255,8 +329,8 @@
       justify-content: center;
       color: white;
       font-weight: bold;
-      font-size: 12px;
-      margin-right: 12px;
+      font-size: 10px;
+      margin-right: 10px;
       flex-shrink: 0;
     }
 
@@ -268,22 +342,25 @@
     .file-name {
       font-weight: 500;
       color: #333;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      font-size: 13px;
     }
 
     .file-meta {
-      font-size: 12px;
+      font-size: 10px;
       color: #666;
       display: flex;
-      gap: 10px;
+      gap: 8px;
     }
 
     .preview-panel h3 {
-      margin: 0 0 20px 0;
+      margin: 0 0 15px 0;
       color: #333;
+      font-size: 16px;
+      font-weight: 600;
     }
 
     .preview-content {
@@ -293,36 +370,38 @@
     .preview-placeholder {
       color: #666;
       font-style: italic;
-      margin: 40px 0;
+      margin: 30px 0;
+      font-size: 13px;
     }
 
     .preview-card {
       background: white;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
     .preview-title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 600;
       color: #333;
-      margin: 0 0 20px 0;
+      margin: 0 0 15px 0;
       word-break: break-word;
     }
 
     .preview-audio {
       width: 100%;
-      margin: 20px 0;
-      border-radius: 8px;
+      margin: 15px 0;
+      border-radius: 6px;
+      height: 35px;
     }
 
     .preview-info {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      margin: 20px 0;
-      font-size: 14px;
+      gap: 12px;
+      margin: 15px 0;
+      font-size: 12px;
     }
 
     .info-item {
@@ -332,27 +411,29 @@
     .info-label {
       color: #666;
       font-weight: 500;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
+      font-size: 10px;
     }
 
     .info-value {
       color: #333;
+      font-size: 12px;
     }
 
     .preview-tags {
-      margin: 20px 0;
+      margin: 15px 0;
     }
 
     .tag {
       display: inline-block;
       background: rgba(102, 126, 234, 0.1);
       color: #667eea;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      margin: 2px 4px;
+      padding: 3px 8px;
+      border-radius: 15px;
+      font-size: 10px;
+      margin: 1px 2px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all 0.2s ease;
     }
 
     .tag:hover {
@@ -362,28 +443,30 @@
 
     .preview-actions {
       display: flex;
-      gap: 10px;
-      margin-top: 20px;
+      gap: 8px;
+      margin-top: 15px;
     }
 
     .preview-actions .button {
       flex: 1;
+      padding: 8px 12px;
     }
 
     .loading {
       text-align: center;
-      padding: 40px;
+      padding: 30px;
       color: #666;
+      font-size: 13px;
     }
 
     .loading-spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #667eea;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
+      width: 30px;
+      height: 30px;
       animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
+      margin: 0 auto 15px;
     }
 
     @keyframes spin {
@@ -394,25 +477,27 @@
     .error {
       background: #f8d7da;
       color: #721c24;
-      padding: 15px;
-      border-radius: 8px;
-      margin: 20px 0;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 15px 0;
       border: 1px solid #f5c6cb;
+      font-size: 12px;
     }
 
     .success {
       background: #d4edda;
       color: #155724;
-      padding: 15px;
-      border-radius: 8px;
-      margin: 20px 0;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 15px 0;
       border: 1px solid #c3e6cb;
+      font-size: 12px;
     }
 
     .tags-cloud {
-      margin: 15px 0;
+      margin: 10px 0;
       text-align: center;
-      max-height: 100px;
+      max-height: 80px;
       overflow-y: auto;
     }
 
@@ -420,10 +505,10 @@
       display: inline-block;
       background: rgba(102, 126, 234, 0.1);
       color: #667eea;
-      padding: 4px 10px;
-      border-radius: 15px;
-      font-size: 11px;
-      margin: 2px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      margin: 1px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
@@ -433,19 +518,18 @@
       transform: scale(1.1);
     }
 
-    /* Scrollbar styling */
     ::-webkit-scrollbar {
-      width: 8px;
+      width: 6px;
     }
 
     ::-webkit-scrollbar-track {
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
+      border-radius: 3px;
     }
 
     ::-webkit-scrollbar-thumb {
       background: rgba(102, 126, 234, 0.5);
-      border-radius: 4px;
+      border-radius: 3px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
@@ -454,14 +538,14 @@
 
     .status-indicator {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
+      bottom: 15px;
+      right: 15px;
       background: rgba(255, 255, 255, 0.9);
-      padding: 10px 15px;
-      border-radius: 25px;
-      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 11px;
       color: #333;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       backdrop-filter: blur(10px);
     }
 
@@ -472,14 +556,63 @@
 
     .no-results {
       text-align: center;
-      padding: 40px;
+      padding: 30px;
       color: #666;
+      font-size: 13px;
     }
 
     .no-results-icon {
-      font-size: 48px;
-      margin-bottom: 16px;
+      font-size: 40px;
+      margin-bottom: 12px;
       opacity: 0.5;
+    }
+
+    /* Compact pagination styles */
+    .pagination-container {
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+      margin-top: auto;
+    }
+
+    .pagination-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 11px;
+      color: #666;
+    }
+
+    .pagination-nav {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pagination-nav button {
+      padding: 4px 6px;
+      min-width: 24px;
+      font-size: 10px;
+      border: 1px solid #ddd;
+      background: white;
+      color: #666;
+    }
+
+    .pagination-nav button:hover:not(:disabled) {
+      background: #f8f9fa;
+      border-color: #667eea;
+    }
+
+    .pagination-nav button.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .pagination-nav button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -553,14 +686,38 @@
 
     <div class="main-content">
       <div class="file-list">
-        <h3>
-          Audio Files
-          <span class="file-count" id="fileCount">Loading...</span>
-        </h3>
+        <div class="file-list-header">
+          <h3>
+            Audio Files
+            <span class="file-count" id="fileCount">Loading...</span>
+          </h3>
+          <div class="pagination-controls">
+            <div class="page-size-selector">
+              <label for="pageSizeSelect">Show:</label>
+              <select id="pageSizeSelect">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="200">200</option>
+                <option value="500">500</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
         <div class="files-container" id="filesList">
           <div class="loading">
             <div class="loading-spinner"></div>
             Loading audio files...
+          </div>
+        </div>
+
+        <div class="pagination-container" id="paginationContainer" style="display: none;">
+          <div class="pagination-summary">
+            <span id="paginationInfo">Showing 1-100 of 1,000 files</span>
+            <div class="pagination-info">Page <span id="currentPageDisplay">1</span> of <span id="totalPagesDisplay">10</span></div>
+          </div>
+          <div class="pagination-nav" id="paginationNav">
+            <!-- Pagination buttons will be generated here -->
           </div>
         </div>
       </div>
@@ -588,6 +745,14 @@
         this.isLoading = false;
         this.scanStatus = null;
         
+        // Pagination state
+        this.pagination = {
+          currentPage: 1,
+          pageSize: 100,
+          totalFiles: 0,
+          totalPages: 0
+        };
+        
         this.init();
       }
 
@@ -600,21 +765,27 @@
       bindEvents() {
         // Search and filters
         document.getElementById('searchInput').addEventListener('input', 
-          this.debounce(() => this.loadFiles(), 500));
+          this.debounce(() => this.resetToFirstPage(), 500));
         
         document.getElementById('extensionFilter').addEventListener('change', 
-          () => this.loadFiles());
+          () => this.resetToFirstPage());
         
         document.getElementById('tagsInput').addEventListener('input',
-          this.debounce(() => this.loadFiles(), 500));
+          this.debounce(() => this.resetToFirstPage(), 500));
 
         // Sorting
         document.querySelectorAll('input[name="sortBy"]').forEach(radio => {
-          radio.addEventListener('change', () => this.loadFiles());
+          radio.addEventListener('change', () => this.resetToFirstPage());
         });
         
         document.querySelectorAll('input[name="sortOrder"]').forEach(radio => {
-          radio.addEventListener('change', () => this.loadFiles());
+          radio.addEventListener('change', () => this.resetToFirstPage());
+        });
+
+        // Pagination
+        document.getElementById('pageSizeSelect').addEventListener('change', (e) => {
+          this.pagination.pageSize = parseInt(e.target.value);
+          this.resetToFirstPage();
         });
 
         // Controls
@@ -674,8 +845,11 @@
           
           if (response.success) {
             this.files = response.files;
+            this.pagination.totalFiles = response.total || 0;
+            this.pagination.totalPages = Math.ceil(this.pagination.totalFiles / this.pagination.pageSize);
+            
             this.renderFiles();
-            this.updateFileCount(response.files.length);
+            this.updatePagination();
           } else {
             throw new Error(response.error || 'Failed to load files');
           }
@@ -683,7 +857,10 @@
           console.error('Error loading files:', error);
           this.showError('Failed to load files: ' + error.message);
           this.files = [];
+          this.pagination.totalFiles = 0;
+          this.pagination.totalPages = 0;
           this.renderFiles();
+          this.updatePagination();
           
           // Retry after a delay if it's a network error
           if (error.message.includes('fetch')) {
@@ -731,17 +908,115 @@
       }
 
       getFilterParams() {
+        const offset = (this.pagination.currentPage - 1) * this.pagination.pageSize;
+        
         return {
           search: document.getElementById('searchInput').value,
           extension: document.getElementById('extensionFilter').value,
           tags: document.getElementById('tagsInput').value,
           sortBy: document.querySelector('input[name="sortBy"]:checked').value,
           sortOrder: document.querySelector('input[name="sortOrder"]:checked').value,
-          limit: 1000
+          limit: this.pagination.pageSize,
+          offset: offset
         };
       }
 
-      renderFiles() {
+      resetToFirstPage() {
+        this.pagination.currentPage = 1;
+        this.loadFiles();
+      }
+
+      goToPage(page) {
+        if (page < 1 || page > this.pagination.totalPages) return;
+        this.pagination.currentPage = page;
+        this.loadFiles();
+      }
+
+      nextPage() {
+        if (this.pagination.currentPage < this.pagination.totalPages) {
+          this.pagination.currentPage++;
+          this.loadFiles();
+        }
+      }
+
+      previousPage() {
+        if (this.pagination.currentPage > 1) {
+          this.pagination.currentPage--;
+          this.loadFiles();
+        }
+      }
+
+      updatePagination() {
+        const container = document.getElementById('paginationContainer');
+        const info = document.getElementById('paginationInfo');
+        const currentPageDisplay = document.getElementById('currentPageDisplay');
+        const totalPagesDisplay = document.getElementById('totalPagesDisplay');
+        const nav = document.getElementById('paginationNav');
+
+        if (this.pagination.totalFiles === 0) {
+          container.style.display = 'none';
+          return;
+        }
+
+        container.style.display = 'block';
+
+        // Update info
+        const start = ((this.pagination.currentPage - 1) * this.pagination.pageSize) + 1;
+        const end = Math.min(start + this.files.length - 1, this.pagination.totalFiles);
+        
+        info.textContent = `Showing ${start}-${end} of ${this.pagination.totalFiles.toLocaleString()} files`;
+        currentPageDisplay.textContent = this.pagination.currentPage;
+        totalPagesDisplay.textContent = this.pagination.totalPages;
+
+        // Generate pagination buttons
+        const buttons = [];
+        
+        // Previous button
+        buttons.push(`
+          <button onclick="app.previousPage()" ${this.pagination.currentPage === 1 ? 'disabled' : ''}>‹</button>
+        `);
+
+        // Page numbers (show max 7 buttons)
+        const maxButtons = 7;
+        let startPage = Math.max(1, this.pagination.currentPage - Math.floor(maxButtons / 2));
+        let endPage = Math.min(this.pagination.totalPages, startPage + maxButtons - 1);
+        
+        if (endPage - startPage < maxButtons - 1) {
+          startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+
+        // First page + ellipsis
+        if (startPage > 1) {
+          buttons.push('<button onclick="app.goToPage(1)">1</button>');
+          if (startPage > 2) {
+            buttons.push('<button disabled>...</button>');
+          }
+        }
+
+        // Page buttons
+        for (let i = startPage; i <= endPage; i++) {
+          buttons.push(`
+            <button onclick="app.goToPage(${i})" ${i === this.pagination.currentPage ? 'class="active"' : ''}>
+              ${i}
+            </button>
+          `);
+        }
+
+        // Ellipsis + last page
+        if (endPage < this.pagination.totalPages) {
+          if (endPage < this.pagination.totalPages - 1) {
+            buttons.push('<button disabled>...</button>');
+          }
+          buttons.push(`<button onclick="app.goToPage(${this.pagination.totalPages})">${this.pagination.totalPages}</button>`);
+        }
+
+        // Next button
+        buttons.push(`
+          <button onclick="app.nextPage()" ${this.pagination.currentPage === this.pagination.totalPages ? 'disabled' : ''}>›</button>
+        `);
+
+        nav.innerHTML = buttons.join('');
+      }
         const container = document.getElementById('filesList');
         
         if (this.files.length === 0) {
@@ -956,7 +1231,7 @@
         document.getElementById('tagsInput').value = '';
         document.querySelector('input[name="sortBy"][value="filename"]').checked = true;
         document.querySelector('input[name="sortOrder"][value="ASC"]').checked = true;
-        this.loadFiles();
+        this.resetToFirstPage();
       }
 
       setVolume(volume) {
@@ -1004,7 +1279,8 @@
       }
 
       updateFileCount(count) {
-        document.getElementById('fileCount').textContent = `${count} files`;
+        // This method is now handled by updatePagination()
+        // Kept for backward compatibility but does nothing
       }
 
       showError(message) {

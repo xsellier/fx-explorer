@@ -136,7 +136,7 @@ class FileScanner extends EventEmitter {
     this.emit('scanStarted', this.scanCount);
 
     try {
-      // Mark all files as inactive first
+      // Mark all existing files as inactive for cleanup detection
       await this.db.markAllFilesInactive();
       
       // Scan directory
@@ -144,12 +144,24 @@ class FileScanner extends EventEmitter {
       
       // Process each file
       let processed = 0;
+      let updated = 0;
+      let added = 0;
+      let unchanged = 0;
       let errors = 0;
       
       for (const filePath of files) {
         try {
-          await this.processFile(filePath);
-          processed++;
+          const result = await this.processFile(filePath);
+          if (result) {
+            processed++;
+            if (!result.existingFile) {
+              added++;
+            } else if (result.wasUpdated) {
+              updated++;
+            } else {
+              unchanged++;
+            }
+          }
           
           // Emit progress every 50 files
           if (processed % 50 === 0) {
@@ -161,7 +173,7 @@ class FileScanner extends EventEmitter {
         }
       }
       
-      // Remove files that are no longer present
+      // Remove files that are no longer present (still marked as inactive)
       const result = await this.db.removeInactiveFiles();
       
       const duration = Date.now() - startTime;
@@ -170,12 +182,15 @@ class FileScanner extends EventEmitter {
         duration,
         totalFiles: files.length,
         processed,
+        added,
+        updated,
+        unchanged,
         errors,
         removed: result.changes || 0
       };
       
       console.log(`✅ Scan #${this.scanCount} completed in ${duration}ms`);
-      console.log(`   📊 Processed: ${processed}, Errors: ${errors}, Removed: ${stats.removed}`);
+      console.log(`   📊 Total: ${processed}, Added: ${added}, Updated: ${updated}, Unchanged: ${unchanged}, Errors: ${errors}, Removed: ${stats.removed}`);
       
       this.emit('scanCompleted', stats);
       
@@ -221,20 +236,59 @@ class FileScanner extends EventEmitter {
       const stat = fs.lstatSync(filePath);
       
       if (!stat.isFile()) {
-        return;
+        return null;
       }
 
       const fileData = this.extractFileData(filePath, stat);
-      const tags = this.generateTags(filePath, fileData);
       
-      // Insert or update file in database
-      const result = await this.db.insertOrUpdateFile(fileData);
-      const fileId = result.fileId;
+      // Check if file already exists in database
+      const existingFile = await this.db.getFileByPath(filePath);
       
-      // Insert tags
-      await this.db.insertFileTags(fileId, tags);
+      let wasUpdated = false;
+      let fileId;
+
+      if (existingFile) {
+        // File exists - check if it needs updating
+        const needsUpdate = (
+          existingFile.date_modified !== fileData.dateModified ||
+          existingFile.size !== fileData.size ||
+          !existingFile.is_active
+        );
+
+        if (needsUpdate) {
+          // Update existing file
+          const result = await this.db.updateExistingFile(existingFile.id, fileData);
+          fileId = existingFile.id;
+          wasUpdated = true;
+          console.log(`🔄 Updated: ${path.basename(filePath)}`);
+        } else {
+          // File unchanged, just mark as active
+          await this.db.markFileActive(existingFile.id);
+          fileId = existingFile.id;
+          // Update tags in case tagging rules changed
+          const tags = this.generateTags(filePath, fileData);
+          await this.db.insertFileTags(fileId, tags);
+          // Don't set wasUpdated = true for unchanged files
+        }
+      } else {
+        // New file - insert it
+        const result = await this.db.insertOrUpdateFile(fileData);
+        fileId = result.fileId;
+        console.log(`➕ Added: ${path.basename(filePath)}`);
+      }
       
-      return { fileId, fileData, tags };
+      // Generate and update tags (only for new files or if tags changed)
+      if (!existingFile || wasUpdated) {
+        const tags = this.generateTags(filePath, fileData);
+        await this.db.insertFileTags(fileId, tags);
+      }
+      
+      return { 
+        fileId, 
+        fileData, 
+        wasUpdated: existingFile ? wasUpdated : false,
+        existingFile: !!existingFile 
+      };
       
     } catch (error) {
       if (error.code === 'ENOENT') {

@@ -43,8 +43,9 @@ class APIRoutes {
         tags = '',
         sortBy = 'filename',
         sortOrder = 'ASC',
-        limit = 1000,
-        offset = 0
+        limit = 100,
+        offset = 0,
+        countOnly = 'false'
       } = req.query;
 
       // Parse tags from comma-separated string
@@ -56,11 +57,24 @@ class APIRoutes {
         tags: tagArray,
         sortBy,
         sortOrder: sortOrder.toUpperCase(),
-        limit: parseInt(limit) || 1000,
+        limit: parseInt(limit) || 100,
         offset: parseInt(offset) || 0
       };
 
-      const files = await this.db.getFiles(options);
+      // If only count is requested, get total count
+      if (countOnly === 'true') {
+        const totalCount = await this.db.getFilesCount(options);
+        return res.json({
+          success: true,
+          total: totalCount
+        });
+      }
+
+      // Get both the files and total count for pagination
+      const [files, totalCount] = await Promise.all([
+        this.db.getFiles(options),
+        this.db.getFilesCount(options)
+      ]);
       
       // Transform files for frontend compatibility
       const transformedFiles = files.map(file => ({
@@ -80,7 +94,8 @@ class APIRoutes {
       res.json({
         success: true,
         files: transformedFiles,
-        total: transformedFiles.length,
+        total: totalCount,
+        returned: transformedFiles.length,
         options
       });
 

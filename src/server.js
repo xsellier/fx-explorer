@@ -410,9 +410,9 @@ class SFXLibraryServer {
   }
 
   getLocalIP() {
-    const interfaces = require('os').networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
-      for (const networkInterface of interfaces[name]) {
+    const networkInterfaces = require('os').networkInterfaces();
+    for (const name of Object.keys(networkInterfaces)) {
+      for (const networkInterface of networkInterfaces[name]) {
         if (networkInterface.family === 'IPv4' && !networkInterface.internal) {
           return networkInterface.address;
         }

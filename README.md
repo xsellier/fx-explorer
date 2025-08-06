@@ -4,7 +4,7 @@ A professional web-based audio file library viewer and manager with SQLite datab
 
 ## ✨ Features
 
-- **🔍 Intelligent File Scanning**: Automatically discovers and catalogs audio files with real-time file system watching
+- **🔍 Smart File Scanning**: Automatically discovers and catalogs audio files with real-time file system watching and **incremental updates** (only processes changed files on restart)
 - **🏷️ Smart Auto-Tagging**: Generates tags from folder structure, filenames, and audio metadata
 - **🗃️ SQLite Database**: Fast, reliable storage with full-text search and advanced filtering
 - **🎵 Audio Streaming**: Built-in audio player with HTTP range request support
