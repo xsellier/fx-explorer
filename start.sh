@@ -57,8 +57,8 @@ fi
 echo ""
 echo "🔍 Checking required files..."
 
-if [ ! -f "server.js" ]; then
-    echo "❌ server.js not found. Please make sure all files are in place."
+if [ ! -f "src/server.js" ]; then
+    echo "❌ src/server.js not found. Please make sure all files are in place."
     exit 1
 fi
 
