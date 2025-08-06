@@ -194,32 +194,6 @@
         height: auto;
       }
 
-      renderFiles() {
-        const container = document.getElementById('filesList');
-        
-        if (this.files.length === 0 && this.pagination.totalFiles === 0) {
-          container.innerHTML = `
-            <div class="no-results">
-              <div class="no-results-icon">🔍</div>
-              <div>No audio files found matching your criteria</div>
-            </div>
-          `;
-          return;
-        }
-
-        container.innerHTML = this.files.map(file => `
-          <div class="file-item" data-id="${file.id}" onclick="app.selectFile(${file.id})">
-            <div class="file-icon">${file.extname.substring(1).toUpperCase()}</div>
-            <div class="file-info">
-              <div class="file-name" title="${file.filename}">${file.filename}</div>
-              <div class="file-meta">
-                <span>${file.sizeFormatted}</span>
-                <span>${file.tags.slice(0, 3).join(', ')}</span>
-              </div>
-            </div>
-          </div>
-        `).join('');
-      }
     }
 
     .file-list, .preview-panel {
@@ -1017,9 +991,11 @@
 
         nav.innerHTML = buttons.join('');
       }
+
+      renderFiles() {
         const container = document.getElementById('filesList');
         
-        if (this.files.length === 0) {
+        if (this.files.length === 0 && this.pagination.totalFiles === 0) {
           container.innerHTML = `
             <div class="no-results">
               <div class="no-results-icon">🔍</div>
