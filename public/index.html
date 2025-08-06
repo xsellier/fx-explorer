@@ -924,16 +924,16 @@
       }
 
       async startStatusPolling() {
-        setInterval(async () => {
-          try {
-            const response = await this.apiCall('/api/scan/status');
-            if (response.success) {
-              this.updateStatusIndicator(response.status);
-            }
-          } catch (error) {
-            // Ignore polling errors
+        try {
+          const response = await this.apiCall('/api/scan/status');
+
+          if (response.success) {
+            this.updateStatusIndicator(response.status);
           }
-        }, 5000);
+        } catch (error) {
+          // Ignore polling errors
+        }
+        setTimeout(startStatusPolling, 5000);
       }
 
       updateStatusIndicator(status) {
