@@ -19,7 +19,7 @@
     "logs": "./logs"
   },
   "scanner": {
-    "scanInterval": 3600000,
+    "scanInterval": 0,
     "watchFiles": false,
     "acceptedExtensions": [
       ".wav", ".mp3", ".aif", ".aiff", ".aac", ".acc", 
