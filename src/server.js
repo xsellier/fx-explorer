@@ -46,6 +46,30 @@ class SFXLibraryServer {
     merge(this.config.getAll(), overrides);
   }
 
+  async waitForDatabase() {
+    const maxWait = 10000; // 10 seconds max
+    const checkInterval = 100; // Check every 100ms
+    let waited = 0;
+
+    while (waited < maxWait) {
+      try {
+        // Try a simple query to verify database is ready
+        await this.database.get('SELECT 1');
+        console.log('✅ Database connection verified');
+        return;
+      } catch (error) {
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        waited += checkInterval;
+        
+        if (waited % 1000 === 0) { // Log every second
+          console.log(`⏳ Waiting for database... (${waited/1000}s)`);
+        }
+      }
+    }
+    
+    throw new Error('Database initialization timeout');
+  }
+
   setupExpress() {
     const serverConfig = this.config.getServer();
     const securityConfig = this.config.getSecurity();
@@ -129,8 +153,8 @@ class SFXLibraryServer {
       console.log('🗃️  Initializing database...');
       this.database = new Database(pathsConfig.database);
 
-      // Wait a moment for database to be ready
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait for database to be properly initialized
+      await this.waitForDatabase();
 
       // Initialize file scanner
       console.log('🔍 Initializing file scanner...');
@@ -388,9 +412,9 @@ class SFXLibraryServer {
   getLocalIP() {
     const interfaces = require('os').networkInterfaces();
     for (const name of Object.keys(interfaces)) {
-      for (const networkInterface of interfaces[name]) {
-        if (networkInterface.family === 'IPv4' && !networkInterface.internal) {
-          return networkInterface.address;
+      for (const interface of interfaces[name]) {
+        if (interface.family === 'IPv4' && !interface.internal) {
+          return interface.address;
         }
       }
     }

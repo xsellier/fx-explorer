@@ -634,16 +634,31 @@
       }
 
       async loadInitialData() {
-        try {
-          await Promise.all([
-            this.loadFiles(),
-            this.loadExtensions(),
-            this.loadPopularTags(),
-            this.loadStats()
-          ]);
-        } catch (error) {
-          console.error('Error loading initial data:', error);
-          this.showError('Failed to load initial data');
+        const maxRetries = 3;
+        let retryCount = 0;
+        
+        while (retryCount < maxRetries) {
+          try {
+            await Promise.all([
+              this.loadFiles(),
+              this.loadExtensions(),
+              this.loadPopularTags(),
+              this.loadStats()
+            ]);
+            console.log('✅ Initial data loaded successfully');
+            return; // Success, exit retry loop
+          } catch (error) {
+            retryCount++;
+            console.warn(`⚠️ Failed to load initial data (attempt ${retryCount}/${maxRetries}):`, error.message);
+            
+            if (retryCount < maxRetries) {
+              console.log(`🔄 Retrying in ${retryCount * 2} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+            } else {
+              console.error('🚨 Failed to load initial data after all retries');
+              this.showError('Failed to connect to server. Please check if the server is running and try refreshing the page.');
+            }
+          }
         }
       }
 
@@ -669,6 +684,14 @@
           this.showError('Failed to load files: ' + error.message);
           this.files = [];
           this.renderFiles();
+          
+          // Retry after a delay if it's a network error
+          if (error.message.includes('fetch')) {
+            console.log('Network error detected, retrying in 3 seconds...');
+            setTimeout(() => {
+              if (!this.isLoading) this.loadFiles();
+            }, 3000);
+          }
         } finally {
           this.isLoading = false;
         }
@@ -833,18 +856,32 @@
             
             <div class="preview-actions">
               <button class="button danger" onclick="app.deleteFile(${file.id})">Delete</button>
-              <button class="button secondary" onclick="app.showInFolder(${file.id})">Show in Folder</button>
+              <button class="button secondary" onclick="app.downloadFile(${file.id}, '${file.filename}')">Download</button>
             </div>
           </div>
         `;
 
-        // Set volume and auto-play
+        // Set volume and add error handling for audio
         setTimeout(() => {
           const audio = document.getElementById('audioPlayer');
           if (audio) {
             const volume = document.getElementById('volumeSlider').value / 100;
             audio.volume = volume;
-            // Don't auto-play by default for better UX
+            
+            // Add error handling for audio loading
+            audio.addEventListener('error', (e) => {
+              console.warn('Audio loading error:', e);
+              this.showError(`Failed to load audio: ${file.filename}`);
+            });
+            
+            // Add loading state feedback
+            audio.addEventListener('loadstart', () => {
+              console.log('Loading audio:', file.filename);
+            });
+            
+            audio.addEventListener('canplay', () => {
+              console.log('Audio ready:', file.filename);
+            });
           }
         }, 100);
       }
@@ -867,19 +904,25 @@
         }
       }
 
-      async showInFolder(fileId) {
+      async downloadFile(fileId, filename) {
         try {
-          const response = await this.apiCall('/api/show-in-folder', {
-            method: 'POST',
-            body: JSON.stringify({ id: fileId })
-          });
+          // Create a temporary link and trigger download
+          const downloadUrl = `/api/audio/${fileId}?download=true`;
           
-          if (response.success) {
-            this.showSuccess('Opening file location...');
-          }
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = filename; // Suggest filename for download
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          this.showSuccess(`Downloading: ${filename}`);
+          
         } catch (error) {
-          console.error('Error showing in folder:', error);
-          this.showError('Failed to open file location');
+          console.error('Error downloading file:', error);
+          this.showError('Failed to download file: ' + error.message);
         }
       }
 
@@ -926,14 +969,16 @@
       async startStatusPolling() {
         try {
           const response = await this.apiCall('/api/scan/status');
-
           if (response.success) {
             this.updateStatusIndicator(response.status);
           }
         } catch (error) {
-          // Ignore polling errors
+          // Ignore polling errors during status checks
+          console.debug('Status polling error (non-critical):', error.message);
         }
-        setTimeout(this.startStatusPolling, 5000);
+        
+        // Use setTimeout for better resilience - prevents request stacking
+        setTimeout(() => this.startStatusPolling(), 5000);
       }
 
       updateStatusIndicator(status) {
@@ -1007,19 +1052,50 @@
       }
 
       async apiCall(url, options = {}) {
-        const response = await fetch(url, {
-          headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
-          },
-          ...options
-        });
+        try {
+          const response = await fetch(url, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...options.headers
+            },
+            ...options
+          });
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Handle different HTTP status codes
+          if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+            
+            // Try to get more detailed error from response body
+            try {
+              const errorData = await response.json();
+              if (errorData.error) {
+                errorMessage = errorData.error;
+              }
+            } catch (e) {
+              // Response wasn't JSON, use status text
+            }
+            
+            throw new Error(errorMessage);
+          }
+
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+          } else {
+            // Handle non-JSON responses
+            return { success: true, data: await response.text() };
+          }
+          
+        } catch (error) {
+          // Provide more specific error messages
+          if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            throw new Error('Network error: Unable to connect to server. Please check if the server is running.');
+          } else if (error.name === 'SyntaxError') {
+            throw new Error('Server returned invalid response. Please check server logs.');
+          } else {
+            throw error; // Re-throw the original error
+          }
         }
-
-        return await response.json();
       }
 
       debounce(func, wait) {

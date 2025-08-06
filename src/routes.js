@@ -1,7 +1,6 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
 
 class APIRoutes {
   constructor(database, fileScanner) {
@@ -17,16 +16,13 @@ class APIRoutes {
     this.router.get('/files/:id', this.getFileById.bind(this));
     this.router.delete('/files/:id', this.deleteFile.bind(this));
     
-    // Audio streaming
+    // Audio streaming and download
     this.router.get('/audio/:id', this.streamAudio.bind(this));
     
     // Metadata endpoints
     this.router.get('/extensions', this.getExtensions.bind(this));
     this.router.get('/tags', this.getTags.bind(this));
     this.router.get('/stats', this.getStats.bind(this));
-    
-    // File management
-    this.router.post('/show-in-folder', this.showInFolder.bind(this));
     
     // Scanner control
     this.router.post('/scan', this.triggerScan.bind(this));
@@ -182,10 +178,11 @@ class APIRoutes {
     }
   }
 
-  // GET /api/audio/:id - Stream audio file
+  // GET /api/audio/:id - Stream audio file or download
   async streamAudio(req, res) {
     try {
       const { id } = req.params;
+      const isDownload = req.query.download === 'true';
       
       // Get file from database
       const file = await this.db.getFileById(id);
@@ -220,18 +217,30 @@ class APIRoutes {
 
       const mimeType = mimeTypes[file.extension] || 'audio/mpeg';
 
-      // Set headers for audio streaming
-      res.set({
+      // Set headers for audio streaming or download
+      const headers = {
         'Content-Type': mimeType,
-        'Accept-Ranges': 'bytes',
         'Content-Length': fileSize,
-        'Cache-Control': 'public, max-age=3600',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Range'
-      });
+      };
 
-      // Handle range requests for audio seeking
-      if (range) {
+      if (isDownload) {
+        // Force download with proper filename
+        headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(file.filename)}"`;
+        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+        headers['Pragma'] = 'no-cache';
+        headers['Expires'] = '0';
+      } else {
+        // Streaming headers
+        headers['Accept-Ranges'] = 'bytes';
+        headers['Cache-Control'] = 'public, max-age=3600';
+      }
+
+      res.set(headers);
+
+      // Handle range requests for audio seeking (but not for downloads)
+      if (range && !isDownload) {
         const parts = range.replace(/bytes=/, "").split("-");
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
@@ -246,12 +255,13 @@ class APIRoutes {
         const stream = fs.createReadStream(filePath, { start, end });
         stream.pipe(res);
       } else {
+        // Stream entire file (for downloads or full streaming)
         fs.createReadStream(filePath).pipe(res);
       }
 
     } catch (error) {
-      console.error('Error streaming audio:', error);
-      res.status(500).json({ error: 'Failed to stream audio file' });
+      console.error('Error streaming/downloading audio:', error);
+      res.status(500).json({ error: 'Failed to serve audio file' });
     }
   }
 
@@ -327,77 +337,7 @@ class APIRoutes {
     }
   }
 
-  // POST /api/show-in-folder - Show file in system explorer
-  async showInFolder(req, res) {
-    try {
-      const { id } = req.body;
-      
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: 'File ID is required'
-        });
-      }
-
-      // Get file from database
-      const file = await this.db.getFileById(id);
-      if (!file) {
-        return res.status(404).json({
-          success: false,
-          error: 'File not found'
-        });
-      }
-
-      const filePath = file.filepath;
-      
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({
-          success: false,
-          error: 'File no longer exists on disk'
-        });
-      }
-
-      // Platform-specific commands to open file explorer
-      let command;
-      switch (process.platform) {
-        case 'win32':
-          command = `explorer /select,"${filePath}"`;
-          break;
-        case 'darwin':
-          command = `open -R "${filePath}"`;
-          break;
-        default: // Linux and others (including Raspbian)
-          // For Raspbian/Linux, try different file managers
-          const directory = path.dirname(filePath);
-          command = `pcmanfm "${directory}" || nautilus "${directory}" || xdg-open "${directory}"`;
-          break;
-      }
-
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error('Error opening file explorer:', error);
-          res.status(500).json({
-            success: false,
-            error: 'Failed to open file explorer',
-            details: error.message
-          });
-        } else {
-          res.json({
-            success: true,
-            message: 'File explorer opened',
-            path: filePath
-          });
-        }
-      });
-
-    } catch (error) {
-      console.error('Error in show-in-folder:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to show file in folder'
-      });
-    }
-  }
+  // Note: show-in-folder endpoint removed - replaced with download functionality
 
   // POST /api/scan - Trigger manual scan
   async triggerScan(req, res) {

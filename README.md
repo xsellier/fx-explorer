@@ -8,7 +8,8 @@ A professional web-based audio file library viewer and manager with SQLite datab
 - **🏷️ Smart Auto-Tagging**: Generates tags from folder structure, filenames, and audio metadata
 - **🗃️ SQLite Database**: Fast, reliable storage with full-text search and advanced filtering
 - **🎵 Audio Streaming**: Built-in audio player with HTTP range request support
-- **📱 Responsive Web UI**: Modern, mobile-friendly interface with real-time updates
+- **📥 File Downloads**: Direct download functionality for easy file sharing and backup
+- **📱 Responsive Web UI**: Modern, mobile-friendly interface with real-time updates and file downloads
 - **🔧 Configuration System**: Comprehensive JSON-based configuration with environment-specific settings
 - **🥧 Raspberry Pi Optimized**: Special optimizations for low-resource environments
 - **🔄 Real-time Updates**: Live file system monitoring with instant UI updates
@@ -167,6 +168,7 @@ audio_library/
 - `GET /api/files/:id` - Get specific file details
 - `DELETE /api/files/:id` - Delete a file
 - `GET /api/audio/:id` - Stream audio file
+- `GET /api/audio/:id?download=true` - Download audio file
 
 ### Metadata
 - `GET /api/extensions` - Get file extensions with counts
@@ -176,7 +178,6 @@ audio_library/
 ### Management
 - `POST /api/scan` - Trigger manual library scan
 - `GET /api/scan/status` - Get scanner status
-- `POST /api/show-in-folder` - Open file location in system explorer
 - `GET /api/health` - Health check endpoint
 
 ## 🥧 Raspberry Pi Deployment
