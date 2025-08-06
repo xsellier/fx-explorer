@@ -19,13 +19,13 @@
     "logs": "./logs"
   },
   "scanner": {
-    "scanInterval": 300000,
+    "scanInterval": 3600000,
     "watchFiles": false,
     "acceptedExtensions": [
       ".wav", ".mp3", ".aif", ".aiff", ".aac", ".acc", 
       ".ogg", ".flac", ".m4a", ".wma"
     ],
-    "maxDepth": 10,
+    "maxDepth": 32,
     "ignoreHidden": true,
     "parallel": true,
     "batchSize": 100
