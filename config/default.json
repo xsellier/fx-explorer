@@ -1,0 +1,136 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "cors": {
+      "enabled": true,
+      "origin": "*",
+      "credentials": false,
+      "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "allowedHeaders": ["Content-Type", "Authorization", "Range"]
+    },
+    "compression": true,
+    "requestLogging": true
+  },
+  "paths": {
+    "audioLibrary": "./audio_library",
+    "database": "./data/sfx_library.db",
+    "public": "./public",
+    "logs": "./logs"
+  },
+  "scanner": {
+    "scanInterval": 300000,
+    "watchFiles": true,
+    "acceptedExtensions": [
+      ".wav", ".mp3", ".aif", ".aiff", ".aac", ".acc", 
+      ".ogg", ".flac", ".m4a", ".wma"
+    ],
+    "maxDepth": 10,
+    "ignoreHidden": true,
+    "parallel": true,
+    "batchSize": 100
+  },
+  "database": {
+    "pragmas": {
+      "journal_mode": "WAL",
+      "synchronous": "NORMAL",
+      "cache_size": 1000,
+      "temp_store": "MEMORY",
+      "mmap_size": 268435456
+    },
+    "backup": {
+      "enabled": false,
+      "interval": 86400000,
+      "keepCount": 7,
+      "path": "./backups"
+    }
+  },
+  "audio": {
+    "streaming": {
+      "bufferSize": 65536,
+      "cacheControl": "public, max-age=3600",
+      "enableRangeRequests": true
+    },
+    "formats": {
+      ".mp3": "audio/mpeg",
+      ".wav": "audio/wav",
+      ".aif": "audio/aiff",
+      ".aiff": "audio/aiff",
+      ".aac": "audio/aac",
+      ".acc": "audio/aac",
+      ".ogg": "audio/ogg",
+      ".flac": "audio/flac",
+      ".m4a": "audio/mp4",
+      ".wma": "audio/x-ms-wma"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "format": "combined",
+    "enableFile": false,
+    "maxFileSize": "10MB",
+    "maxFiles": 5
+  },
+  "security": {
+    "rateLimiting": {
+      "enabled": false,
+      "windowMs": 900000,
+      "max": 1000,
+      "skipSuccessfulRequests": true
+    },
+    "pathTraversal": {
+      "enabled": true,
+      "strictMode": true
+    },
+    "fileUpload": {
+      "enabled": false,
+      "maxSize": "100MB",
+      "allowedTypes": []
+    }
+  },
+  "features": {
+    "fileWatcher": true,
+    "autoScan": true,
+    "webInterface": true,
+    "apiDocumentation": true,
+    "healthCheck": true,
+    "metrics": false
+  },
+  "tagging": {
+    "autoGenerate": true,
+    "stopWords": [
+      "the", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by",
+      "from", "up", "about", "into", "through", "during", "before", "after", "above",
+      "below", "between", "among", "since", "without", "under", "over", "sound", "audio",
+      "track", "file", "music", "song", "clip", "wav", "mp3", "aiff", "ogg", "flac"
+    ],
+    "minTagLength": 2,
+    "maxTagLength": 50,
+    "caseSensitive": false,
+    "customRules": {
+      "sizeCategories": {
+        "tiny": 102400,
+        "small": 1048576,
+        "medium": 10485760,
+        "large": 104857600
+      },
+      "formatCategories": {
+        "lossless": [".wav", ".aiff", ".flac"],
+        "compressed": [".mp3", ".aac", ".ogg", ".m4a"],
+        "uncompressed": [".wav", ".aiff"]
+      }
+    }
+  },
+  "performance": {
+    "caching": {
+      "enabled": true,
+      "maxAge": 3600,
+      "staticFiles": true
+    },
+    "compression": {
+      "enabled": true,
+      "threshold": 1024,
+      "level": 6
+    }
+  }
+}
