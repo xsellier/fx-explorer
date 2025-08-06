@@ -20,7 +20,7 @@
   },
   "scanner": {
     "scanInterval": 300000,
-    "watchFiles": true,
+    "watchFiles": false,
     "acceptedExtensions": [
       ".wav", ".mp3", ".aif", ".aiff", ".aac", ".acc", 
       ".ogg", ".flac", ".m4a", ".wma"
