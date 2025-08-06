@@ -1,0 +1,15 @@
+[Unit]
+Description=Easy Reporter
+Documentation=https://github.com/xsellier/easy-reporter
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/fx-explorer-server
+Environment=NODE_ENV=local
+Type=simple
+User=pi
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
