@@ -1,416 +1,192 @@
-# SFX Library Viewer - SQLite-Powered Server
+# FX Explorer
 
-A professional web-based audio file library viewer and manager with SQLite database, automatic file scanning, and intelligent tagging. Optimized for Raspberry Pi deployment with comprehensive configuration system.
+My sound effects live on my NAS, spread across bundles and packs bought over the years. Finding the right click or the right ambience with a file manager is a pain, so I made this.
 
-## ✨ Features
+FX Explorer is a small web app that runs on a Raspberry Pi. It indexes the library once into a SQLite database, then everything happens in the browser: search, sort, play, cut, convert, download, delete.
 
-- **🔍 Smart File Scanning**: Automatically discovers and catalogs audio files with real-time file system watching and **incremental updates** (only processes changed files on restart)
-- **🏷️ Smart Auto-Tagging**: Generates tags from folder structure, filenames, and audio metadata
-- **🗃️ SQLite Database**: Fast, reliable storage with full-text search and advanced filtering
-- **🎵 Audio Streaming**: Built-in audio player with HTTP range request support
-- **📥 File Downloads**: Direct download functionality for easy file sharing and backup
-- **📱 Responsive Web UI**: Modern, mobile-friendly interface with real-time updates and file downloads
-- **🔧 Configuration System**: Comprehensive JSON-based configuration with environment-specific settings
-- **🥧 Raspberry Pi Optimized**: Special optimizations for low-resource environments
-- **🔄 Real-time Updates**: Live file system monitoring with instant UI updates
-- **📊 Analytics**: Database statistics and performance monitoring
-- **🛡️ Security**: Path traversal protection and configurable access control
+## Features
 
-## 🏗️ Architecture
+- Lists every sound of the library folder, with its size, duration, format, sample rate, bit depth and channels
+- One global volume for everything, set once, saved in the browser
+- Scans the library once to fill the database, then only when you click on Scan
+- Play, download or delete a sound
+- Sort by name, date, size or duration, ascending or descending
+- One search box for file names and tags, with `name:` and `tag:` to be specific
+- Cut a part of a sound and download only that part
+- Convert to WAV, FLAC, OGG or MP3, downmix to mono, resample, add a fade in / fade out
+- Favorites and your own tags
+- Keyboard navigation, so you can go through a folder with the arrow keys and hear every sound
 
-```
-sfx-library-viewer-server/
-├── src/                    # Backend source code
-│   ├── server.js          # Main server application
-│   ├── config.js          # Configuration loader
-│   ├── database.js        # SQLite database operations
-│   ├── fileScanner.js     # File system scanner with auto-tagging
-│   └── routes.js          # API routes and endpoints
-├── config/                # Configuration files
-│   ├── default.json       # Base configuration
-│   ├── development.json   # Development overrides
-│   ├── production.json    # Production settings
-│   ├── raspbian.json      # Raspberry Pi optimizations
-│   └── README.md          # Configuration documentation
-├── public/                # Frontend files
-│   └── index.html         # Web interface
-├── data/                  # Database storage (auto-created)
-├── audio_library/         # Your audio files (auto-created)
-└── logs/                  # Log files (auto-created)
-```
+## Requirements
 
-## 🚀 Quick Start
-
-### 1. Install Dependencies
+- Node.js 20 or newer
+- ffmpeg (`ffprobe` reads the durations, `ffmpeg` cuts and converts)
+- The library mounted somewhere on the Pi (NFS, SMB, whatever)
 
 ```bash
-npm install
+sudo apt install ffmpeg
 ```
 
-### 2. Start the Server
+## Install
 
 ```bash
-# Development mode
-npm run dev
-
-# Production mode
-npm run prod
-
-# Raspberry Pi mode
-npm run raspbian
+git clone https://github.com/xsellier/fx-explorer
+cd fx-explorer
+npm install --omit=dev
 ```
 
-### 3. Access the Interface
+Create `config/local.json` with the path of your library:
 
-Open your browser and navigate to:
-- **Local**: `http://localhost:3000`
-- **Network**: `http://YOUR_IP:3000`
-
-### 4. Add Your Audio Files
-
-Place your audio files in the `audio_library/` directory (created automatically):
-
-```
-audio_library/
-├── UI/
-│   ├── Buttons/
-│   └── Notifications/
-├── Music/
-│   ├── Ambient/
-│   └── Tracks/
-└── SFX/
-    ├── Explosions/
-    └── Footsteps/
+```json
+{
+  "paths": {
+    "audioLibrary": "/mnt/nas/sfx"
+  }
+}
 ```
 
-The server will automatically scan and catalog all audio files!
-
-## 🔧 Configuration System
-
-The server uses a sophisticated configuration system with environment-specific settings:
-
-### Configuration Files
-
-- **`config/default.json`** - Base configuration with all default values
-- **`config/development.json`** - Development environment settings
-- **`config/production.json`** - Production optimizations
-- **`config/raspbian.json`** - Raspberry Pi specific settings
-- **`config/local.json`** - Your local overrides (git-ignored)
-
-### Environment Variables
-
-Override any setting using environment variables:
+Then start it:
 
 ```bash
-# Basic settings
-export NODE_ENV=production
-export PORT=8080
-export LIBRARY_PATH=/mnt/usb/audio
-export DATABASE_PATH=/var/lib/sfx-viewer/library.db
-
-# Scanner settings
-export SCAN_INTERVAL=300000
-export WATCH_FILES=true
-
-# Start server
 npm start
 ```
 
-### Configuration Priority
+Open `http://<raspberry-pi-ip>:3000`. On the first start, the library is scanned automatically. Files show up as soon as they are listed, durations are filled right after.
 
-1. **default.json** (base settings)
-2. **{environment}.json** (environment-specific)
-3. **local.json** (your local overrides)
-4. **Environment variables** (highest priority)
+## Configuration
 
-## 📁 Audio Library Management
+Everything is in `config/`. Files are merged in this order, the last one wins:
 
-### Supported Formats
+1. `default.json`
+2. `<NODE_ENV>.json` if `NODE_ENV` is set
+3. `local.json`, ignored by git, put your own settings there
 
-- **Uncompressed**: WAV, AIFF
-- **Compressed Lossless**: FLAC
-- **Compressed Lossy**: MP3, AAC, OGG, M4A, WMA
+Some values can also be set with environment variables: `PORT`, `HOST`, `LIBRARY_PATH`, `DATABASE_PATH`.
 
-### Automatic Tagging
+| Key | Default | What it does |
+| --- | --- | --- |
+| `server.port` | `3000` | HTTP port |
+| `server.host` | `0.0.0.0` | Listening address |
+| `server.auth` | `null` | `{ "user": "...", "password": "..." }` to enable basic auth |
+| `paths.audioLibrary` | `./audio_library` | Folder containing the sounds |
+| `paths.database` | `./data/fx-explorer.db` | SQLite database |
+| `paths.trash` | `null` | When set, deleted files are moved there instead of being removed |
+| `paths.tmp` | system temp folder | Where ffmpeg writes the exported files before sending them |
+| `scanner.acceptedExtensions` | wav, mp3, aif, aiff, aac, ogg, oga, opus, flac, m4a, wma | Files to index |
+| `scanner.ignoreHidden` | `true` | Skip files and folders starting with a dot |
+| `scanner.ignoreFolders` | `@eaDir`, `#recycle`, `#snapshot`, `lost+found` | Folder names to skip, the NAS ones are already there |
+| `scanner.scanOnFirstStart` | `true` | Scan when the database is empty |
+| `scanner.statConcurrency` | `8` | Files read in parallel while indexing |
+| `scanner.probeConcurrency` | `2` | ffprobe processes in parallel |
+| `ffmpeg.ffmpeg` / `ffmpeg.ffprobe` | `ffmpeg` / `ffprobe` | Binaries to use |
+| `ffmpeg.maxJobs` | `2` | ffmpeg processes in parallel (exports and transcoding) |
+| `ui.copyPathPrefix` | `""` | Prepended to the path when you copy it, for instance `smb://nas/sfx/` |
 
-The system automatically generates tags from:
+## Scanning
 
-- **Directory Structure**: `UI/Buttons/click.wav` → tags: `ui`, `buttons`, `click`
-- **Filename Patterns**: `explosion_big_01.wav` → tags: `explosion`, `big`
-- **File Metadata**: Size categories, format types, estimated duration
-- **Custom Rules**: Configurable tagging logic
+The scan runs once, on the first start. After that, nothing happens until you click on Scan.
 
-### File Organization Best Practices
+A scan is incremental: a file with the same size and the same modification date is skipped. Only new or modified files go through ffprobe, deleted files are removed from the database. Shift + click on Scan reads every duration again.
 
-```
-audio_library/
-├── UI/                    # User interface sounds
-│   ├── Buttons/           # Button clicks, hovers
-│   ├── Notifications/     # Alerts, confirmations
-│   └── Menu/              # Menu sounds
-├── SFX/                   # Sound effects
-│   ├── Environment/       # Ambient, nature
-│   ├── Actions/           # Footsteps, doors
-│   └── Combat/            # Weapons, explosions
-├── Music/                 # Musical content
-│   ├── Background/        # Background music
-│   ├── Stingers/          # Short musical pieces
-│   └── Loops/             # Looping tracks
-└── Voices/                # Vocal content
-    ├── Narration/         # Voice-over
-    └── Characters/        # Character voices
-```
+Two safety nets, because the library is on a NAS:
 
-## 🛠️ API Endpoints
+- If the library folder is missing or empty, the scan stops and the database is not touched. An unmounted share looks exactly like an empty folder.
+- If a folder cannot be read during the scan, its files are kept in the database.
 
-### Files
-- `GET /api/files` - List files with filtering and sorting
-- `GET /api/files/:id` - Get specific file details
-- `DELETE /api/files/:id` - Delete a file
-- `GET /api/audio/:id` - Stream audio file
-- `GET /api/audio/:id?download=true` - Download audio file
+The database is only a cache. If you delete it, the next start rebuilds it, but you lose your favorites and your tags.
 
-### Metadata
-- `GET /api/extensions` - Get file extensions with counts
-- `GET /api/tags` - Get popular tags
-- `GET /api/stats` - Get database statistics
+## Search
 
-### Management
-- `POST /api/scan` - Trigger manual library scan
-- `GET /api/scan/status` - Get scanner status
-- `GET /api/health` - Health check endpoint
+Type words, every word must match the file name or a tag. Tags are the folder names (`PremiumBeat SFX`, `West Wolf - Pedestrian Streets`...) plus the ones you add yourself.
 
-## 🥧 Raspberry Pi Deployment
+| Query | Result |
+| --- | --- |
+| `footsteps gravel` | Both words in the name or the tags, mixed |
+| `"city square"` | The exact phrase |
+| `name: "city square"` | File name only |
+| `tag: "west wolf"` | Tags only |
+| `ext:wav` | Extension |
+| `dur:<2`, `dur:>10`, `dur:1-3` | Duration, in seconds |
+| `-evening`, `-tag: "cheap pack"` | Exclude |
 
-### System Requirements
+The search does not care about case, accents, `_` or `-`. `pedestrian street` matches `PS_43_City_Pedestrian_Street`.
 
-- **Raspberry Pi 3B+** or newer recommended
-- **MicroSD Card**: 16GB+ (Class 10)
-- **RAM**: 1GB+ available
-- **Node.js**: 14.0.0 or newer
+Clicking on a folder name or a tag adds it to the search. The star button in the header shows the favorites.
 
-### Installation on Raspberry Pi
+## Keyboard
 
-```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
+| Key | Action |
+| --- | --- |
+| `/` | Search |
+| `Up` / `Down` | Previous / next sound, plays it if "Play on select" is checked |
+| `Space` | Play / pause |
+| `Enter` | Play |
+| `E` | Cut / convert |
+| `D` | Download |
+| `F` | Favorite |
+| `Del` | Delete |
 
-# Install Node.js
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
+## Cut and convert
 
-# Clone and setup project
-git clone <your-repo>
-cd sfx-library-viewer-server
-npm install
+The scissors button opens the editor. The browser downloads the file and draws the waveform, so the Pi does not have to.
 
-# Start with Raspberry Pi optimizations
-npm run raspbian
-```
+- Drag to select a part, drag the edges to adjust, or type the start and end
+- Mouse wheel to zoom, Shift + wheel to scroll
+- Space plays the selection, the loop button loops it
 
-### Raspberry Pi Optimizations
+Then pick the format, channels, sample rate and fades, and download. The export is done by ffmpeg on the Pi. WAV keeps the bit depth of the source. MP3 is automatically limited to stereo and 48 kHz, the encoder does not go further.
 
-The `raspbian.json` configuration includes:
+Without a selection, the whole file is exported, which is how you convert a file.
 
-- **Low Memory Mode**: Reduced memory usage
-- **Optimized Scanning**: Lower concurrency, smaller batches
-- **SD Card Friendly**: Reduced database writes
-- **Performance Tuning**: CPU and I/O optimizations
+A short fade (5 to 10 ms) on both ends avoids the click you get when cutting in the middle of a waveform.
 
-### Running as a Service
+## Raspberry Pi notes
 
-Create a systemd service for automatic startup:
+- Chrome and Firefox cannot play AIFF or WMA. For those, the Pi converts the file to MP3 on the fly. It costs some CPU, it is killed as soon as you play something else.
+- Large files (long ambiences, 90 MB and more) take a few seconds to show up in the editor, the browser has to download them first.
+- `ffmpeg.maxJobs` and `scanner.probeConcurrency` are the two knobs if the Pi struggles. On a Pi 3, put both to 1.
+- The first scan of a big library can take a while: ffprobe runs once per file. You can use the app while it runs.
+
+## Run it as a service
 
 ```bash
-# Create service file
-sudo nano /etc/systemd/system/sfx-viewer.service
+sudo cp systemctl-service/fx-explorer.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now fx-explorer
+journalctl -u fx-explorer -f
 ```
 
-```ini
-[Unit]
-Description=SFX Library Viewer Server
-After=network.target
+The service uses `NODE_ENV=local`, so it reads `config/local.json`. Adjust `WorkingDirectory` and `User` if needed.
 
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/sfx-library-viewer-server
-Environment=NODE_ENV=raspbian
-Environment=PORT=3000
-ExecStart=/usr/bin/node src/server.js
-Restart=on-failure
-RestartSec=10
+## Upgrading from the first version
 
-[Install]
-WantedBy=multi-user.target
-```
+- The database schema changed. The old database is dropped and rebuilt by a scan, nothing to do.
+- The config keys `paths.audioLibrary`, `paths.database`, `server.port` and `server.host` did not change.
+- `scanInterval`, `watchFiles` and the other unused keys are gone, they are ignored if still in `local.json`.
+- `chokidar`, `sqlite3` and `cors` are no longer used. Run `npm install` again.
+
+## API
+
+| Method | Route | Description |
+| --- | --- | --- |
+| `GET` | `/api/files?q=&sort=&order=&offset=&limit=` | Search and list, `sort` is `name`, `date`, `size` or `duration`, `order` is `asc` or `desc` |
+| `GET` | `/api/files/:id` | One file |
+| `GET` | `/api/files/:id/stream` | Play, supports range requests. `?transcode=1` for an MP3 version |
+| `GET` | `/api/files/:id/download` | Download the original |
+| `GET` | `/api/files/:id/export?format=&start=&end=&channels=&rate=&fadeIn=&fadeOut=` | Cut and / or convert, times in seconds, fades in ms |
+| `DELETE` | `/api/files/:id` | Delete the file (or move it to the trash folder) |
+| `POST` | `/api/files/:id/tags` | Add a tag, body `{ "tag": "..." }` |
+| `DELETE` | `/api/files/:id/tags/:tag` | Remove one of your tags |
+| `GET` | `/api/tags` | Every tag with its count |
+| `GET` | `/api/status` | Library stats and scan status |
+| `POST` | `/api/scan` | Start a scan, body `{ "full": true }` to read every duration again |
+
+## Tests
 
 ```bash
-# Enable and start service
-sudo systemctl enable sfx-viewer
-sudo systemctl start sfx-viewer
-sudo systemctl status sfx-viewer
+npm test
 ```
 
-## 🔍 Database Schema
+## License
 
-The SQLite database uses an optimized schema with:
-
-- **Files Table**: Core file metadata and paths
-- **Tags Table**: Tag names with usage statistics
-- **File-Tags Junction**: Many-to-many relationship
-- **Full-Text Search**: FTS5 virtual table for fast searching
-- **Indexes**: Optimized for common query patterns
-
-## 🎛️ Advanced Configuration
-
-### Performance Tuning
-
-```json
-{
-  "scanner": {
-    "scanInterval": 300000,
-    "batchSize": 100,
-    "parallel": true
-  },
-  "database": {
-    "pragmas": {
-      "cache_size": 2000,
-      "mmap_size": 268435456
-    }
-  }
-}
-```
-
-### Custom Tagging Rules
-
-```json
-{
-  "tagging": {
-    "customRules": {
-      "sizeCategories": {
-        "tiny": 102400,
-        "small": 1048576,
-        "medium": 10485760
-      }
-    }
-  }
-}
-```
-
-### Security Settings
-
-```json
-{
-  "security": {
-    "rateLimiting": {
-      "enabled": true,
-      "max": 1000
-    },
-    "pathTraversal": {
-      "strictMode": true
-    }
-  }
-}
-```
-
-## 📊 Monitoring & Maintenance
-
-### Health Checks
-
-```bash
-# Check server status
-curl http://localhost:3000/api/health
-
-# Get statistics
-curl http://localhost:3000/api/stats
-
-# Check scanner status
-curl http://localhost:3000/api/scan/status
-```
-
-### Database Maintenance
-
-```bash
-# Manual scan trigger
-curl -X POST http://localhost:3000/api/scan
-
-# View logs
-tail -f logs/application.log
-```
-
-### Backup & Recovery
-
-Database backups are automatically created when enabled in configuration:
-
-```json
-{
-  "database": {
-    "backup": {
-      "enabled": true,
-      "interval": 86400000,
-      "keepCount": 7,
-      "path": "./backups"
-    }
-  }
-}
-```
-
-## 🛟 Troubleshooting
-
-### Common Issues
-
-**Port Already in Use**
-```bash
-export PORT=3001
-npm start
-```
-
-**Permission Errors**
-```bash
-sudo chown -R $USER:$USER audio_library/
-chmod -R 755 audio_library/
-```
-
-**Database Lock Errors**
-- Stop the server
-- Delete any `.db-wal` and `.db-shm` files
-- Restart the server
-
-**Memory Issues on Raspberry Pi**
-- Set `lowMemoryMode: true` in configuration
-- Reduce `batchSize` in scanner settings
-- Increase swap file size
-
-### Logging
-
-Enable detailed logging:
-
-```bash
-export LOG_LEVEL=debug
-npm start
-```
-
-### Performance Monitoring
-
-The server provides performance metrics:
-- File scan duration
-- Database query times
-- Memory usage statistics
-- Request response times
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
----
-
-**Built with ❤️ for audio professionals and Raspberry Pi enthusiasts!**
+MIT

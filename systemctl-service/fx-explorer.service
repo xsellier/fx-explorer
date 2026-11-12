@@ -1,15 +1,18 @@
 [Unit]
-Description=Easy Reporter
-Documentation=https://github.com/xsellier/easy-reporter
-After=network.target
+Description=FX Explorer
+Documentation=https://github.com/xsellier/fx-explorer
+# Wait for the NAS to be mounted, adjust it to your mount point
+After=network-online.target remote-fs.target
+Wants=network-online.target
 
 [Service]
 WorkingDirectory=/home/pi/fx-explorer-server
 Environment=NODE_ENV=local
 Type=simple
 User=pi
-ExecStart=/usr/bin/npm start
+ExecStart=/usr/bin/node src/server.js
 Restart=on-failure
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target

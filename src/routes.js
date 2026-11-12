@@ -1,472 +1,171 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs')
+const path = require('path')
+const express = require('express')
+const { FORMATS } = require('./ffmpeg')
 
-class APIRoutes {
-  constructor(database, fileScanner) {
-    this.db = database;
-    this.scanner = fileScanner;
-    this.router = express.Router();
-    this.setupRoutes();
-  }
+const MIME_TYPES = {
+  wav: 'audio/wav',
+  mp3: 'audio/mpeg',
+  aif: 'audio/aiff',
+  aiff: 'audio/aiff',
+  aac: 'audio/aac',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+  opus: 'audio/ogg',
+  flac: 'audio/flac',
+  m4a: 'audio/mp4',
+  wma: 'audio/x-ms-wma'
+}
 
-  setupRoutes() {
-    // Files and search endpoints
-    this.router.get('/files', this.getFiles.bind(this));
-    this.router.get('/files/:id', this.getFileById.bind(this));
-    this.router.delete('/files/:id', this.deleteFile.bind(this));
-    
-    // Audio streaming and download
-    this.router.get('/audio/:id', this.streamAudio.bind(this));
-    
-    // Metadata endpoints
-    this.router.get('/extensions', this.getExtensions.bind(this));
-    this.router.get('/tags', this.getTags.bind(this));
-    this.router.get('/stats', this.getStats.bind(this));
-    
-    // Scanner control
-    this.router.post('/scan', this.triggerScan.bind(this));
-    this.router.get('/scan/status', this.getScanStatus.bind(this));
-    
-    // Health check
-    this.router.get('/health', this.healthCheck.bind(this));
-    
-    console.log('🛣️  API routes configured');
-  }
+function number (value) {
+  const parsed = parseFloat(value)
 
-  // GET /api/files - Get files with filtering, sorting, and pagination
-  async getFiles(req, res) {
-    try {
-      const {
-        search = '',
-        extension = '',
-        tags = '',
-        sortBy = 'filename',
-        sortOrder = 'ASC',
-        limit = 100,
-        offset = 0,
-        countOnly = 'false'
-      } = req.query;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null
+}
 
-      // Parse tags from comma-separated string
-      const tagArray = tags ? tags.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag) : [];
+async function moveFile (source, target) {
+  await fs.promises.mkdir(path.dirname(target), { recursive: true })
 
-      const options = {
-        search: search.trim(),
-        extension: extension || '',
-        tags: tagArray,
-        sortBy,
-        sortOrder: sortOrder.toUpperCase(),
-        limit: parseInt(limit) || 100,
-        offset: parseInt(offset) || 0
-      };
+  try {
+    await fs.promises.rename(source, target)
+  } catch (error) {
+    // The trash lives on another disk
+    if (error.code !== 'EXDEV') throw error
 
-      // If only count is requested, get total count
-      if (countOnly === 'true') {
-        const totalCount = await this.db.getFilesCount(options);
-        return res.json({
-          success: true,
-          total: totalCount
-        });
-      }
-
-      // Get both the files and total count for pagination
-      const [files, totalCount] = await Promise.all([
-        this.db.getFiles(options),
-        this.db.getFilesCount(options)
-      ]);
-      
-      // Transform files for frontend compatibility
-      const transformedFiles = files.map(file => ({
-        id: file.id,
-        filename: file.filename,
-        filePath: file.relative_path,
-        extname: file.extension,
-        tags: file.tags || [],
-        size: file.size,
-        sizeFormatted: file.size_formatted,
-        date: file.date,
-        dateFormatted: file.dateFormatted,
-        dirname: path.dirname(file.filepath),
-        relative_path: file.relative_path
-      }));
-
-      res.json({
-        success: true,
-        files: transformedFiles,
-        total: totalCount,
-        returned: transformedFiles.length,
-        options
-      });
-
-    } catch (error) {
-      console.error('Error getting files:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve files',
-        details: error.message
-      });
-    }
-  }
-
-  // GET /api/files/:id - Get single file by ID
-  async getFileById(req, res) {
-    try {
-      const { id } = req.params;
-      const file = await this.db.getFileById(id);
-      
-      if (!file) {
-        return res.status(404).json({
-          success: false,
-          error: 'File not found'
-        });
-      }
-
-      // Transform for frontend compatibility
-      const transformedFile = {
-        id: file.id,
-        filename: file.filename,
-        filePath: file.relative_path,
-        extname: file.extension,
-        tags: file.tags || [],
-        size: file.size,
-        sizeFormatted: file.size_formatted,
-        date: file.date,
-        dateFormatted: new Date(file.date_modified * 1000).toLocaleString(),
-        dirname: path.dirname(file.filepath)
-      };
-
-      res.json({
-        success: true,
-        file: transformedFile
-      });
-
-    } catch (error) {
-      console.error('Error getting file by ID:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve file'
-      });
-    }
-  }
-
-  // DELETE /api/files/:id - Delete file
-  async deleteFile(req, res) {
-    try {
-      const { id } = req.params;
-      
-      // First get file info to delete physical file
-      const file = await this.db.getFileById(id);
-      if (!file) {
-        return res.status(404).json({
-          success: false,
-          error: 'File not found'
-        });
-      }
-
-      // Delete physical file
-      try {
-        if (fs.existsSync(file.filepath)) {
-          fs.unlinkSync(file.filepath);
-          console.log(`🗑️  Physical file deleted: ${file.filepath}`);
-        }
-      } catch (fsError) {
-        console.warn('Warning: Could not delete physical file:', fsError.message);
-        // Continue with database deletion even if physical file deletion fails
-      }
-
-      // Delete from database
-      await this.db.deleteFile(id);
-
-      res.json({
-        success: true,
-        message: 'File deleted successfully',
-        filename: file.filename
-      });
-
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to delete file'
-      });
-    }
-  }
-
-  // GET /api/audio/:id - Stream audio file or download
-  async streamAudio(req, res) {
-    try {
-      const { id } = req.params;
-      const isDownload = req.query.download === 'true';
-      
-      // Get file from database
-      const file = await this.db.getFileById(id);
-      if (!file) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-
-      const filePath = file.filepath;
-      
-      // Check if file exists on disk
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'Audio file not found on disk' });
-      }
-
-      // Get file stats
-      const stat = fs.statSync(filePath);
-      const fileSize = stat.size;
-      const range = req.headers.range;
-
-      // Set appropriate MIME type
-      const mimeTypes = {
-        '.mp3': 'audio/mpeg',
-        '.wav': 'audio/wav',
-        '.aif': 'audio/aiff',
-        '.aiff': 'audio/aiff',
-        '.aac': 'audio/aac',
-        '.acc': 'audio/aac',
-        '.ogg': 'audio/ogg',
-        '.flac': 'audio/flac',
-        '.m4a': 'audio/mp4'
-      };
-
-      const mimeType = mimeTypes[file.extension] || 'audio/mpeg';
-
-      // Set headers for audio streaming or download
-      const headers = {
-        'Content-Type': mimeType,
-        'Content-Length': fileSize,
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Range'
-      };
-
-      if (isDownload) {
-        // Force download with proper filename
-        headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(file.filename)}"`;
-        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
-        headers['Pragma'] = 'no-cache';
-        headers['Expires'] = '0';
-      } else {
-        // Streaming headers
-        headers['Accept-Ranges'] = 'bytes';
-        headers['Cache-Control'] = 'public, max-age=3600';
-      }
-
-      res.set(headers);
-
-      // Handle range requests for audio seeking (but not for downloads)
-      if (range && !isDownload) {
-        const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        const chunksize = (end - start) + 1;
-
-        res.status(206);
-        res.set({
-          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-          'Content-Length': chunksize
-        });
-
-        const stream = fs.createReadStream(filePath, { start, end });
-        stream.pipe(res);
-      } else {
-        // Stream entire file (for downloads or full streaming)
-        fs.createReadStream(filePath).pipe(res);
-      }
-
-    } catch (error) {
-      console.error('Error streaming/downloading audio:', error);
-      res.status(500).json({ error: 'Failed to serve audio file' });
-    }
-  }
-
-  // GET /api/extensions - Get all file extensions with counts
-  async getExtensions(req, res) {
-    try {
-      const extensions = await this.db.getFileExtensions();
-      
-      res.json({
-        success: true,
-        extensions: extensions.map(ext => ({
-          extension: ext.extension,
-          count: ext.count,
-          label: ext.extension.toUpperCase()
-        }))
-      });
-
-    } catch (error) {
-      console.error('Error getting extensions:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve file extensions'
-      });
-    }
-  }
-
-  // GET /api/tags - Get popular tags
-  async getTags(req, res) {
-    try {
-      const { limit = 50 } = req.query;
-      const tags = await this.db.getPopularTags(parseInt(limit));
-      
-      res.json({
-        success: true,
-        tags: tags.map(tag => ({
-          name: tag.name,
-          count: tag.usage_count
-        }))
-      });
-
-    } catch (error) {
-      console.error('Error getting tags:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve tags'
-      });
-    }
-  }
-
-  // GET /api/stats - Get database statistics
-  async getStats(req, res) {
-    try {
-      const stats = await this.db.getStats();
-      
-      res.json({
-        success: true,
-        stats: {
-          totalFiles: stats.totalFiles,
-          totalTags: stats.totalTags,
-          totalSize: stats.totalSize,
-          totalSizeFormatted: this.formatBytes(stats.totalSize),
-          extensions: stats.extensions,
-          scannerStatus: this.scanner ? this.scanner.getStatus() : null
-        }
-      });
-
-    } catch (error) {
-      console.error('Error getting stats:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to retrieve statistics'
-      });
-    }
-  }
-
-  // Note: show-in-folder endpoint removed - replaced with download functionality
-
-  // POST /api/scan - Trigger manual scan
-  async triggerScan(req, res) {
-    try {
-      if (!this.scanner) {
-        return res.status(503).json({
-          success: false,
-          error: 'File scanner not available'
-        });
-      }
-
-      if (this.scanner.isScanning) {
-        return res.status(409).json({
-          success: false,
-          error: 'Scan already in progress'
-        });
-      }
-
-      // Trigger scan in background
-      this.scanner.manualScan().catch(error => {
-        console.error('Manual scan failed:', error);
-      });
-
-      res.json({
-        success: true,
-        message: 'Scan started',
-        scanId: this.scanner.scanCount + 1
-      });
-
-    } catch (error) {
-      console.error('Error triggering scan:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to start scan'
-      });
-    }
-  }
-
-  // GET /api/scan/status - Get scanner status
-  async getScanStatus(req, res) {
-    try {
-      if (!this.scanner) {
-        return res.status(503).json({
-          success: false,
-          error: 'File scanner not available'
-        });
-      }
-
-      const status = this.scanner.getStatus();
-      res.json({
-        success: true,
-        status
-      });
-
-    } catch (error) {
-      console.error('Error getting scan status:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to get scan status'
-      });
-    }
-  }
-
-  // GET /api/health - Health check
-  async healthCheck(req, res) {
-    try {
-      const stats = await this.db.getStats();
-      
-      res.json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        database: {
-          connected: true,
-          totalFiles: stats.totalFiles
-        },
-        scanner: this.scanner ? {
-          active: true,
-          status: this.scanner.getStatus()
-        } : {
-          active: false
-        },
-        system: {
-          platform: process.platform,
-          nodeVersion: process.version,
-          uptime: process.uptime()
-        }
-      });
-
-    } catch (error) {
-      console.error('Health check failed:', error);
-      res.status(500).json({
-        status: 'ERROR',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      });
-    }
-  }
-
-  // Utility function to format bytes
-  formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  }
-
-  getRouter() {
-    return this.router;
+    await fs.promises.copyFile(source, target)
+    await fs.promises.unlink(source)
   }
 }
 
-module.exports = APIRoutes;
+module.exports = function createRouter ({ library, scanner, ffmpeg, config }) {
+  const router = express.Router()
+  const root = config.paths.audioLibrary
+
+  const absolute = (file) => {
+    const full = path.join(root, file.path)
+    const relative = path.relative(root, full)
+
+    if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Invalid path')
+
+    return full
+  }
+
+  // Loads the file of /files/:id into req.file
+  router.param('id', (req, res, next, id) => {
+    req.file = library.getFile(parseInt(id, 10))
+
+    if (!req.file) return res.status(404).json({ error: 'File not found' })
+
+    next()
+  })
+
+  router.get('/files', (req, res) => {
+    res.json(library.list({
+      q: req.query.q,
+      sort: req.query.sort,
+      order: req.query.order,
+      offset: Math.max(0, parseInt(req.query.offset, 10) || 0),
+      limit: Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 200))
+    }))
+  })
+
+  router.get('/files/:id', (req, res) => res.json(req.file))
+
+  router.get('/files/:id/stream', (req, res, next) => {
+    const file = absolute(req.file)
+
+    if (req.query.transcode) return ffmpeg.transcode(file, req, res).catch(next)
+
+    res.sendFile(file, {
+      dotfiles: 'allow',
+      headers: { 'Content-Type': MIME_TYPES[req.file.ext] || 'application/octet-stream' }
+    }, (error) => error && !res.headersSent && next(error))
+  })
+
+  router.get('/files/:id/download', (req, res, next) => {
+    res.download(absolute(req.file), req.file.name, { dotfiles: 'allow' }, (error) => error && !res.headersSent && next(error))
+  })
+
+  // Cut and/or convert with ffmpeg, then send the result
+  router.get('/files/:id/export', async (req, res, next) => {
+    const format = String(req.query.format || req.file.ext).toLowerCase()
+
+    if (!FORMATS[format]) return res.status(400).json({ error: `Unsupported format: ${format}` })
+
+    const options = {
+      format,
+      start: number(req.query.start) || 0,
+      end: number(req.query.end),
+      channels: parseInt(req.query.channels, 10) || null,
+      sampleRate: parseInt(req.query.rate, 10) || null,
+      fadeIn: number(req.query.fadeIn) || 0,
+      fadeOut: number(req.query.fadeOut) || 0
+    }
+
+    try {
+      const output = await ffmpeg.export(absolute(req.file), req.file, options)
+      const isCut = options.start > 0 || options.end !== null
+      const name = `${path.parse(req.file.name).name}${isCut ? '_cut' : ''}.${format}`
+
+      res.download(output, name, () => fs.unlink(output, () => {}))
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  router.delete('/files/:id', async (req, res, next) => {
+    try {
+      const file = absolute(req.file)
+
+      if (config.paths.trash) await moveFile(file, path.join(config.paths.trash, req.file.path))
+      else await fs.promises.unlink(file)
+    } catch (error) {
+      if (error.code !== 'ENOENT') return next(error)
+    }
+
+    library.deleteFiles([req.file.id])
+    res.json({ deleted: req.file.id, trash: !!config.paths.trash })
+  })
+
+  router.post('/files/:id/tags', (req, res) => {
+    const tag = String((req.body || {}).tag || '').trim()
+
+    if (!tag || tag.length > 100) return res.status(400).json({ error: 'Invalid tag' })
+
+    library.addTag(req.file.id, tag)
+    res.json(library.getFile(req.file.id))
+  })
+
+  router.delete('/files/:id/tags/:tag', (req, res) => {
+    library.removeTag(req.file.id, req.params.tag)
+    res.json(library.getFile(req.file.id))
+  })
+
+  router.get('/tags', (req, res) => res.json(library.tags()))
+
+  router.get('/status', (req, res) => {
+    res.json({
+      stats: library.stats(),
+      scan: scanner.status(),
+      formats: Object.keys(FORMATS),
+      trash: !!config.paths.trash,
+      copyPathPrefix: config.ui.copyPathPrefix || ''
+    })
+  })
+
+  router.post('/scan', (req, res) => {
+    const started = scanner.start({ full: !!(req.body || {}).full })
+
+    res.status(started ? 202 : 409).json(scanner.status())
+  })
+
+  router.use((error, req, res, next) => {
+    console.error(`${req.method} ${req.originalUrl}: ${error.message}`)
+
+    if (res.headersSent) return res.end()
+
+    res.status(error.status || 500).json({ error: error.message })
+  })
+
+  return router
+}
